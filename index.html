@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六级词汇 · 自适应记忆</title>
+<script src="vendor/tailwind.js"></script>
+<link rel="stylesheet" href="vendor/font-awesome/css/font-awesome.min.css">
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;background:#f5f6fa}
+  .card{transition:transform .18s ease,box-shadow .18s ease}
+  .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+  .fade-in{animation:fi .25s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .k{font-family:"Georgia","Times New Roman",serif}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+</style>
+</head>
+<body class="text-slate-700">
+
+<!-- ===== 顶栏 ===== -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div class="font-bold text-lg text-slate-800"><i class="fa fa-book text-indigo-500 mr-2"></i>六级词汇</div>
+    <nav class="flex-1 flex gap-1 justify-center text-sm" id="nav">
+      <button data-view="home"    class="navbtn px-3 py-1.5 rounded-lg font-medium">今日</button>
+      <button data-view="study"   class="navbtn px-3 py-1.5 rounded-lg font-medium">学习</button>
+      <button data-view="weak"    class="navbtn px-3 py-1.5 rounded-lg font-medium">不熟词库</button>
+      <button data-view="lib"     class="navbtn px-3 py-1.5 rounded-lg font-medium">全部词库</button>
+      <button data-view="stat"    class="navbtn px-3 py-5 rounded-lg font-medium">统计</button>
+    </nav>
+    <button id="btnSetting" class="text-slate-400 hover:text-indigo-600 px-2"><i class="fa fa-cog"></i></button>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-6">
+
+  <!-- ===== 今日 ===== -->
+  <section id="v-home" class="view">
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">今日新词</div>
+        <div class="text-3xl font-bold text-slate-800 mt-1"><span id="h_newDone">0</span><span class="text-base font-normal text-slate-400">/ <span id="h_newTotal">0</span></span></div>
+        <div class="h-2 bg-slate-100 rounded-full mt-3"><div id="h_newBar" class="h-2 bg-indigo-500 rounded-full" style="width:0%"></div></div>
+      </div>
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">待复习（已到期）</div>
+        <div class="text-3xl font-bold text-amber-500 mt-1" id="h_review">0</div>
+        <div class="text-xs text-slate-400 mt-3">按 1 / 3 / 7 / 15 / 30 天间隔安排</div>
+      </div>
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">不熟词库</div>
+        <div class="text-3xl font-bold text-rose-500 mt-1" id="h_weak">0</div>
+        <div class="text-xs text-slate-400 mt-3">答错自动收录，可随时重测</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-100 p-6">
+      <h2 class="font-semibold text-slate-800 mb-1">今天怎么学</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        目标 <b id="h_goal">200</b> 个新词，顺序随机。流程是：<b>看词 → 自己判断认识/不认识</b>，
+        <b>选完之后才会显示释义</b>（点卡片偷看不了）。答「不认识」的词会在 3 个词之后再次出现让你重答；
+        答「认识」的词本次仍会再出现 3 次，之后进入跨天复习计划。任何时候都能用「← 上一个」回看。
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <button id="btnStart" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm">
+          <i class="fa fa-play mr-1"></i><span id="btnStartTxt">开始今日学习</span>
+        </button>
+        <button id="btnReview" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm">
+          <i class="fa fa-repeat mr-1"></i>只做复习 (<span id="h_reviewBtn">0</span>)
+        </button>
+        <button data-view="weak" class="navbtn2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">
+          <i class="fa fa-exclamation-circle mr-1"></i>去刷不熟词库
+        </button>
+      </div>
+      <div id="h_tip" class="text-xs text-slate-400 mt-4"></div>
+    </div>
+  </section>
+
+  <!-- ===== 学习 ===== -->
+  <section id="v-study" class="view hidden">
+    <div id="studyEmpty" class="text-center py-16 text-slate-400">
+      <i class="fa fa-compass text-4xl mb-3"></i>
+      <p>还没有开始的学习</p>
+      <button data-view="home" class="navbtn2 mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">去今日</button>
+    </div>
+
+    <div id="studyBody" class="hidden">
+      <div class="flex items-center gap-3 mb-4 text-sm">
+        <button id="btnQuit" class="text-slate-400 hover:text-rose-500" title="结束本次学习"><i class="fa fa-times"></i></button>
+        <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div id="s_bar" class="h-full bg-indigo-500 transition-all" style="width:0%"></div>
+        </div>
+        <div class="text-slate-500 tabular-nums"><span id="s_pos">0</span> / <span id="s_total">0</span></div>
+        <button id="btnPrev" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 text-xs whitespace-nowrap" title="回看上一个词（快捷键 ←）">
+          <i class="fa fa-arrow-left mr-1"></i>上一个
+        </button>
+      </div>
+      <div class="flex gap-4 text-sm mb-4">
+        <span class="text-emerald-600"><i class="fa fa-check mr-1"></i>认识 <b id="s_ok">0</b></span>
+        <span class="text-rose-500"><i class="fa fa-times mr-1"></i>不认识 <b id="s_ng">0</b></span>
+        <span class="text-slate-400 ml-auto" id="s_modeTag"></span>
+      </div>
+
+      <div id="s_card" class="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center fade-in">
+        <div class="text-slate-400 text-xs mb-1" id="s_kind"></div>
+        <div id="s_feedback" class="hidden text-sm font-medium mb-3 flex flex-wrap items-center justify-center gap-3">
+          <span id="s_feedbackTxt"></span>
+          <button id="btnWrong" class="hidden px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs border border-rose-100">
+            <i class="fa fa-undo mr-1"></i>认错了
+          </button>
+        </div>
+        <div class="k text-5xl font-bold text-slate-800 tracking-tight" id="s_word">—</div>
+        <div class="mt-2 flex items-center justify-center gap-3">
+          <span class="text-slate-400 k" id="s_ph"></span>
+          <button id="btnSpeak" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-indigo-100 text-indigo-500 text-sm" title="朗读单词"><i class="fa fa-volume-up"></i></button>
+        </div>
+        <div class="mt-4 text-xs text-slate-400" id="s_hint">先自己回想意思，选「认识 / 不认识」后才会显示释义</div>
+
+        <div id="s_detail" class="hidden mt-6 pt-6 border-t border-slate-100 text-left fade-in"></div>
+      </div>
+
+      <div id="s_askBtns" class="grid grid-cols-2 gap-3 mt-4">
+        <button id="btnNo" class="py-4 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold border border-rose-100">
+          不认识 <span class="text-xs font-normal opacity-70">(2)</span>
+        </button>
+        <button id="btnYes" class="py-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-semibold border border-emerald-100">
+          认识 <span class="text-xs font-normal opacity-70">(1)</span>
+        </button>
+      </div>
+      <div id="s_nextBtns" class="hidden mt-4">
+        <button id="btnNext" class="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+          继续 <span class="text-xs font-normal opacity-75">(空格)</span>
+        </button>
+      </div>
+      <div class="text-center text-xs text-slate-400 mt-3">
+        快捷键：<kbd class="px-1.5 border border-slate-300 rounded">1</kbd> 认识 ·
+        <kbd class="px-1.5 border border-slate-300 rounded">2</kbd> 不认识 ·
+        <kbd class="px-1.5 border border-slate-300 rounded">空格</kbd> 继续 ·
+        <kbd class="px-1.5 border border-slate-300 rounded">←</kbd> 上一个
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 不熟词库 ===== -->
+  <section id="v-weak" class="view hidden">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <input id="wSearch" placeholder="搜索不熟单词…" class="flex-1 min-w-[180px] px-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-400 text-sm">
+      <select id="wSort" class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm">
+        <option value="hard">最不熟优先</option>
+        <option value="recent">最近出现</option>
+        <option value="alpha">字母序</option>
+      </select>
+      <button id="btnTestWeak" class="px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium shadow-sm">
+        <i class="fa fa-play mr-1"></i>测试当前列表 (<span id="w_count">0</span>)
+      </button>
+    </div>
+    <div id="wList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    <div id="wEmpty" class="hidden text-center py-16 text-slate-400">
+      <i class="fa fa-smile-o text-4xl mb-3"></i><p>不熟词库是空的 —— 说明你都答对了</p>
+    </div>
+  </section>
+
+  <!-- ===== 全部词库 ===== -->
+  <section id="v-lib" class="view hidden">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <input id="lSearch" placeholder="搜索单词 / 中文释义…" class="flex-1 min-w-[180px] px-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-400 text-sm">
+      <select id="lFreq" class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm">
+        <option value="">全部频次</option>
+        <option value="1">仅高频</option>
+        <option value="2">中高频</option>
+        <option value="3">低频</option>
+      </select>
+      <select id="lState" class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm">
+        <option value="">全部状态</option>
+        <option value="new">未学</option>
+        <option value="known">已掌握</option>
+        <option value="unfamiliar">不熟</option>
+      </select>
+      <select id="lExam" class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm">
+        <option value="">全部考频</option>
+        <option value="5">仅真题极高频</option>
+        <option value="4">真题高频以上</option>
+        <option value="3">真题中频以上</option>
+        <option value="0">仅真题未出现</option>
+      </select>
+      <select id="lSort" class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm">
+        <option value="alpha">字母序</option>
+        <option value="rand">随机</option>
+        <option value="freq">高频优先</option>
+        <option value="exam">考频优先</option>
+      </select>
+      <span class="text-sm text-slate-400" id="l_count"></span>
+    </div>
+    <div id="lList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    <div class="text-center mt-6"><button id="lMore" class="hidden px-4 py-2 rounded-lg bg-slate-100 text-sm text-slate-600">加载更多</button></div>
+  </section>
+
+  <!-- ===== 统计 ===== -->
+  <section id="v-stat" class="view hidden">
+    <div class="grid md:grid-cols-4 gap-4 mb-6">
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">词库总量</div><div class="text-3xl font-bold text-slate-800 mt-1" id="st_total">0</div>
+      </div>
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">已学</div><div class="text-3xl font-bold text-indigo-500 mt-1" id="st_learned">0</div>
+      </div>
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">已掌握</div><div class="text-3xl font-bold text-emerald-500 mt-1" id="st_known">0</div>
+      </div>
+      <div class="card bg-white rounded-2xl p-5 border border-slate-100">
+        <div class="text-sm text-slate-500">不熟</div><div class="text-3xl font-bold text-rose-500 mt-1" id="st_weak">0</div>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-6">
+      <h3 class="font-semibold text-slate-800 mb-4">近 14 天学习量</h3>
+      <div id="st_chart" class="flex items-end gap-2 h-40"></div>
+      <div class="flex gap-4 text-xs text-slate-400 mt-3">
+        <span><i class="fa fa-square text-indigo-400 mr-1"></i>认识</span>
+        <span><i class="fa fa-square text-rose-300 mr-1"></i>不认识</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-6 mt-4">
+      <h3 class="font-semibold text-slate-800 mb-3">数据管理</h3>
+      <div class="flex flex-wrap gap-3 text-sm">
+        <button id="btnExport" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200">导出进度 (JSON)</button>
+        <button id="btnImport" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200">导入进度</button>
+        <button id="btnReset" class="px-4 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600">清空全部进度</button>
+      </div>
+      <input id="fileImport" type="file" accept="application/json" class="hidden">
+    </div>
+  </section>
+</main>
+
+<!-- ===== 详情弹窗 ===== -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 p-4 overflow-y-auto">
+  <div class="max-w-2xl mx-auto mt-8 mb-8 bg-white rounded-2xl shadow-xl p-6 fade-in" id="modalBox"></div>
+</div>
+
+<!-- ===== 设置弹窗 ===== -->
+<div id="setModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 p-4 overflow-y-auto">
+  <div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl p-6 fade-in">
+    <h3 class="font-semibold text-slate-800 mb-4">设置</h3>
+    <div class="space-y-4 text-sm">
+      <label class="block">
+        <span class="text-slate-600">每日新词目标</span>
+        <input id="cfgDaily" type="number" min="10" max="1000" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">答错后隔几个词再出现</span>
+        <input id="cfgGap" type="number" min="1" max="20" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">答对后本次会话内再重复几次</span>
+        <input id="cfgReps" type="number" min="0" max="6" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200">
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input id="cfgAutoSay" type="checkbox" class="w-4 h-4 accent-indigo-600">
+        <span class="text-slate-600">答完后自动朗读例句</span>
+      </label>
+      <div class="text-xs text-slate-400">重复间隔依次为 8 / 25 / 60 个词（可在此调整次数）。</div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button id="cfgSave" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">保存</button>
+      <button id="cfgCancel" class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200">取消</button>
+    </div>
+  </div>
+</div>
+
+<script src="data/manifest.js"></script>
+<script>
+/* ================= 常量 ================= */
+const KEY = "cet6.v1";
+const GAP_SEQUENCE = [8, 25, 60];          // 答对后的再次出现间隔（词数）
+const REVIEW_DAYS  = [1, 3, 7, 15, 30];    // 跨天复习间隔
+/* 六级真题考频等级：5 极高频 4 高频 3 中频 2 低频 1 罕见 0 真题未出现 */
+const FREQ_GRADE = {
+  5: {t:"极高频", c:"bg-rose-50 text-rose-600 border-rose-100"},
+  4: {t:"高频",   c:"bg-orange-50 text-orange-600 border-orange-100"},
+  3: {t:"中频",   c:"bg-amber-50 text-amber-600 border-amber-100"},
+  2: {t:"低频",   c:"bg-sky-50 text-sky-600 border-sky-100"},
+  1: {t:"罕见",   c:"bg-slate-100 text-slate-500 border-slate-200"},
+  0: {t:"真题未出现", c:"bg-slate-50 text-slate-400 border-slate-200"}
+};
+
+/* ================= 状态 ================= */
+let S = null;
+function defaults(){
+  return {
+    v:1,
+    w:{},                       // word -> {st,ok,ng,stage,due,ts}
+    days:{},                    // 'YYYY-MM-DD' -> {plan:[],done:0,mode:""}
+    log:{},                     // 'YYYY-MM-DD' -> {ok,ng}
+    cfg:{ dailyNew:200, relearnGap:3, reps:3, autoSay:false },
+    sess:null                   // {deck:[{w,k}],cur:0,plans:{},mode,stats:{ok,ng},seed:{}}
+  };
+}
+function load(){
+  try{
+    S = JSON.parse(localStorage.getItem(KEY)) || defaults();
+  }catch(e){ S = defaults(); }
+  const d = defaults();
+  for(const k in d) if(!(k in S)) S[k]=d[k];
+  for(const k in d.cfg) if(!(k in S.cfg)) S.cfg[k]=d.cfg[k];
+  // 迁移旧版存档：会话结构补齐，避免点按钮报错
+  if(S.sess){
+    if(!Array.isArray(S.sess.hist)) S.sess.hist = [];
+    if(typeof S.sess.phase !== "string") S.sess.phase = "ask";
+    if(typeof S.sess.back !== "number") S.sess.back = -1;
+    if(!("answered" in S.sess)) S.sess.answered = null;
+    if(!S.sess.plans) S.sess.plans = {};
+    delete S.sess.reveal;
+    delete S.sess.todayDone;
+  }
+  // 旧版每日计划是字母序，标记后重建一次
+  for(const k in S.days){
+    if(!S.days[k].seen) S.days[k].seen = {};
+    if(!S.days[k].seed) S.days[k].seed = (Math.random()*2147483647)|0;
+  }
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+const today = ()=> dayKey(new Date());
+const dayKey = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function dayStart(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+
+/* ================= 词库 ================= */
+let LIB = {};   // word -> record
+let LIB_READY = false;
+function loadLib(cb){
+  const chunks = window.CET6_CHUNKS || [];
+  let i = 0;
+  (function next(){
+    if(i >= chunks.length){ LIB = window.CET6 || {}; LIB_READY = true; window.CET6_READY = true; cb(); return; }
+    const s = document.createElement("script");
+    s.src = "data/" + chunks[i++];
+    s.onload = next;
+    s.onerror = ()=>{ console.warn("加载失败", chunks[i-1]); next(); };
+    document.head.appendChild(s);
+  })();
+}
+
+/* ================= 工具 ================= */
+function wordList(){ return Object.keys(LIB).sort(); }
+function isWeak(w){ return S.w[w] && S.w[w].st === "unfamiliar"; }
+function dueList(){
+  const t = dayStart();
+  return Object.keys(S.w).filter(w=>S.w[w].st==="known" && S.w[w].due && S.w[w].due <= t);
+}
+function bumpDay(d){
+  if(!S.log[d]) S.log[d] = {ok:0, ng:0};
+  return S.log[d];
+}
+/* 线性同余洗牌：同一种子结果一致，保证刷新页面后顺序不变 */
+function shuffle(arr, seed){
+  const a = arr.slice();
+  let s = (seed>>>0) || 1;
+  const rnd = ()=>{ s = (s*1664525 + 1013904223)>>>0; return s/4294967296; };
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+/* 朗读：有道真人音优先，失败回退系统 Web Speech */
+let curAudio = null;
+function stopSpeak(){
+  if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+}
+function speak(text, onend){
+  if(!text) { if(onend) onend(); return; }
+  stopSpeak();
+  const a = new Audio("https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2");
+  curAudio = a;
+  let done = false;
+  const finish = ()=>{ if(done) return; done = true; if(onend) onend(); };
+  a.onended = finish;
+  a.onerror = ()=> ttsSpeak(text, finish);
+  a.play().catch(()=> ttsSpeak(text, finish));
+}
+function ttsSpeak(text, onend){
+  try{
+    if(!window.speechSynthesis){ if(onend) onend(); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.rate = 0.95;
+    u.onend = ()=>{ if(onend) onend(); };
+    u.onerror = ()=>{ if(onend) onend(); };
+    window.speechSynthesis.speak(u);
+  }catch(e){ if(onend) onend(); }
+}
+
+/* ================= 学习会话引擎 =================
+   deck:  [{w, k}]  k = 'new' | 'review' | 'weak' | 'repeat'
+   plans: {word: [gaps...]}  答对后剩余的重复间隔
+*/
+function newSession(mode, words, seed){
+  const deck = words.map(w=>({w, k: mode==="review"?"review":"new"}));
+  const plans = {};
+  S.sess = {
+    deck: deck,
+    cur: 0,
+    plans: plans,
+    mode: mode,
+    stats: {ok:0, ng:0},
+    phase: "ask",      // ask | reveal | back
+    hist: [],          // 已作答历史 {w, known, k}
+    back: -1,          // 回看指针
+    answered: null     // 刚作答的那条
+  };
+  // 初始化 plans：所有词先排一次重复
+  for(const it of deck){
+    if(!plans[it.w]) plans[it.w] = buildPlan();
+  }
+  save();
+}
+function buildPlan(){
+  const gaps = [];
+  for(let i=0;i<S.cfg.reps;i++) gaps.push(GAP_SEQUENCE[i % GAP_SEQUENCE.length]);
+  return gaps;
+}
+function insertAt(idx, item){
+  const d = S.sess.deck;
+  const at = Math.min(idx, d.length);
+  d.splice(at, 0, item);
+  return at;
+}
+function curItem(){
+  const s = S.sess;
+  return s.cur < s.deck.length ? s.deck[s.cur] : null;
+}
+function answer(known){
+  const s = S.sess;
+  const it = curItem();
+  if(!it) return;
+  const w = it.w;
+  const st = S.w[w] || (S.w[w] = {st:"new", ok:0, ng:0, stage:0, due:0, ts:0});
+  st.ts = Date.now();
+  const lg = bumpDay(today());
+  // 今日新词进度
+  const dk = today(), day = S.days[dk];
+  if(day && day.plan.indexOf(w) >= 0 && !day.seen){
+    day.seen = day.seen || {};
+    if(!day.seen[w]){ day.seen[w] = 1; day.done = (day.done||0) + 1; }
+  }
+  if(known){
+    st.ok++; st.st = "known"; s.stats.ok++; lg.ok++;
+    const plan = s.plans[w] || (s.plans[w] = buildPlan());
+    if(plan.length){
+      const gap = plan.shift();
+      s.lastIns = {w: w, idx: insertAt(s.cur + gap + 1, {w, k:"repeat"})};  // 本次会话内再次出现
+    }else{
+      // 本次重复已完成，转入跨天复习
+      st.stage = Math.min((st.stage||0)+1, REVIEW_DAYS.length);
+      st.due = dayStart() + REVIEW_DAYS[st.stage-1]*86400000;
+    }
+  }else{
+    st.ng++; st.st = "unfamiliar"; s.stats.ng++; lg.ng++;
+    s.plans[w] = buildPlan();                        // 重置重复计划
+    s.lastIns = {w: w, idx: insertAt(s.cur + S.cfg.relearnGap + 1, {w, k:"repeat"})};  // 隔 N 个词后重来
+    st.stage = 0;
+    st.due = dayStart();
+  }
+  s.cur++;
+  s.hist.push({w: w, known: known, k: it.k});
+  if(s.hist.length > 400) s.hist.shift();
+  s.answered = {w: w, known: known, k: it.k};
+  s.back = -1;
+  s.phase = "reveal";
+  save();
+  renderStudy();
+  if(S.cfg.autoSay && (LIB[w]||{}).e && LIB[w].e[0]) speak(LIB[w].e[0][0]);
+}
+/* 认错了：刚答「认识」后改判为「不认识」 */
+function markWrong(){
+  const s = S.sess;
+  if(!s || s.phase !== "reveal" || !s.answered || !s.answered.known) return;
+  const w = s.answered.w;
+  const st = S.w[w] || (S.w[w] = {st:"new", ok:0, ng:0, stage:0, due:0, ts:0});
+  // 撤销「认识」时插入的重复副本，避免同一个词排两次
+  if(s.lastIns && s.lastIns.w === w && s.deck[s.lastIns.idx] && s.deck[s.lastIns.idx].w === w){
+    s.deck.splice(s.lastIns.idx, 1);
+  }
+  st.ng++; st.st = "unfamiliar"; st.stage = 0; st.due = dayStart();
+  s.stats.ok--; s.stats.ng++;
+  const lg = bumpDay(today());
+  if(lg.ok > 0) lg.ok--; lg.ng++;
+  if(s.hist.length) s.hist[s.hist.length-1].known = false;
+  s.answered.known = false;
+  s.plans[w] = buildPlan();
+  // 隔 N 个词后重新出现（此时 s.cur 已指向下一个待答题）
+  insertAt(s.cur + S.cfg.relearnGap, {w, k:"repeat"});
+  save();
+  renderStudy();
+}
+/* 继续：从「已作答」或「回看」回到当前待答题 */
+function next(){
+  const s = S.sess; if(!s) return;
+  if(s.phase === "back"){
+    s.back++;
+    if(s.back >= s.hist.length){ s.back = -1; s.phase = "ask"; }
+  }else{
+    s.phase = "ask";
+  }
+  stopSpeak();
+  save();
+  renderStudy();
+}
+/* 上一个：回看已作答过的词 */
+function prev(){
+  const s = S.sess; if(!s || !s.hist.length) return;
+  let b;
+  if(s.phase === "back") b = s.back - 1;
+  else if(s.phase === "reveal") b = s.hist.length - 2;
+  else b = s.hist.length - 1;
+  if(b < 0) b = 0;
+  s.back = b;
+  s.phase = "back";
+  stopSpeak();
+  save();
+  renderStudy();
+}
+function skipItem(){ // 不会/不想答，直接跳过
+  const s = S.sess; s.cur++; s.reveal=false; save(); renderStudy();
+}
+
+/* ================= 渲染：首页 ================= */
+function renderHome(){
+  const d = S.days[today()] || {plan:[], done:0};
+  const due = dueList();
+  const weak = Object.keys(S.w).filter(isWeak).length;
+  document.getElementById("h_newDone").textContent = d.done;
+  document.getElementById("h_newTotal").textContent = d.plan.length || S.cfg.dailyNew;
+  document.getElementById("h_newBar").style.width = (d.plan.length ? (d.done/d.plan.length*100) : 0) + "%";
+  document.getElementById("h_review").textContent = due.length;
+  document.getElementById("h_reviewBtn").textContent = due.length;
+  document.getElementById("h_weak").textContent = weak;
+  document.getElementById("h_goal").textContent = S.cfg.dailyNew;
+  document.getElementById("btnStartTxt").textContent = !LIB_READY ? "加载词库中…"
+    : (S.sess && !S.sess.finished) ? "继续学习" : "开始今日学习";
+  document.getElementById("btnStart").disabled = !LIB_READY;
+  document.getElementById("btnReview").disabled = !LIB_READY || due.length === 0;
+  document.getElementById("btnReview").classList.toggle("opacity-40", !LIB_READY || due.length === 0);
+  const unseen = wordList().filter(w=>!S.w[w]).length;
+  document.getElementById("h_tip").textContent = LIB_READY
+    ? `词库共 ${wordList().length} 词，尚未学过 ${unseen} 词。答「不认识」的词会进入不熟词库。`
+    : `词库加载中（${wordList().length} 词已就绪）…`;
+}
+
+/* ================= 渲染：学习 ================= */
+function renderStudy(){
+  const s = S.sess;
+  if(!s || (s.phase === "ask" && !curItem())){
+    if(s) { s.finished = true; s.phase = "done"; save(); }
+    document.getElementById("studyEmpty").classList.remove("hidden");
+    document.getElementById("studyEmpty").innerHTML = s
+      ? `<i class="fa fa-trophy text-4xl mb-3 text-amber-400"></i>
+         <p class="font-medium text-slate-600">本轮完成！认识 <b class="text-emerald-500">${s.stats.ok}</b>，不认识 <b class="text-rose-500">${s.stats.ng}</b></p>
+         <div class="flex gap-3 justify-center mt-4">
+           <button data-view="weak" class="navbtn2 px-4 py-2 rounded-lg bg-rose-500 text-white text-sm">刷不熟词库</button>
+           <button data-view="home" class="navbtn2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">返回今日</button>
+         </div>`
+      : `<i class="fa fa-compass text-4xl mb-3"></i><p>还没有开始的学习</p>
+         <button data-view="home" class="navbtn2 mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">去今日</button>`;
+    document.getElementById("studyBody").classList.add("hidden");
+    return;
+  }
+  document.getElementById("studyEmpty").classList.add("hidden");
+  document.getElementById("studyBody").classList.remove("hidden");
+
+  const showing = s.phase === "back" ? s.hist[s.back] : (s.phase === "reveal" ? s.answered : curItem());
+  const w = showing.w;
+  const rec = LIB[w] || {};
+  const total = s.deck.length;
+  const detail = s.phase !== "ask";     // 只有作答后（或回看）才显示释义
+
+  document.getElementById("s_bar").style.width = (s.cur/total*100) + "%";
+  document.getElementById("s_pos").textContent = Math.min(s.cur + 1, total);
+  document.getElementById("s_total").textContent = total;
+  document.getElementById("s_ok").textContent = s.stats.ok;
+  document.getElementById("s_ng").textContent = s.stats.ng;
+  document.getElementById("s_modeTag").textContent =
+    {new:"新词", review:"复习", weak:"不熟词库", mixed:"今日任务"}[s.mode] || s.mode;
+  document.getElementById("s_kind").textContent =
+    s.phase === "back" ? "回看上一个" :
+    s.phase === "reveal" ? "已作答" :
+    showing.k === "new" ? "新词" : showing.k === "review" ? "到期待复习" : "再次出现";
+  document.getElementById("s_word").textContent = w;
+  document.getElementById("s_ph").textContent = rec.p ? "/" + rec.p + "/" : "";
+
+  const fb = document.getElementById("s_feedback");
+  const fbTxt = document.getElementById("s_feedbackTxt");
+  const btnWrong = document.getElementById("btnWrong");
+  if(detail){
+    fb.classList.remove("hidden");
+    fbTxt.innerHTML = showing.known
+      ? '<span class="text-emerald-600"><i class="fa fa-check-circle mr-1"></i>你答的是：认识</span>'
+      : '<span class="text-rose-500"><i class="fa fa-times-circle mr-1"></i>你答的是：不认识</span>';
+    // 「认错了」只在刚答完「认识」的那一刻出现
+    btnWrong.classList.toggle("hidden", !(s.phase === "reveal" && showing.known));
+  }else{
+    fb.classList.add("hidden");
+    fbTxt.innerHTML = "";
+    btnWrong.classList.add("hidden");
+  }
+  document.getElementById("s_hint").classList.toggle("hidden", detail);
+  document.getElementById("btnPrev").disabled = !s.hist.length;
+
+  if(detail) showDetail(w);
+  else{
+    const d = document.getElementById("s_detail");
+    d.classList.add("hidden"); d.innerHTML = "";
+  }
+  document.getElementById("s_askBtns").classList.toggle("hidden", detail);
+  document.getElementById("s_nextBtns").classList.toggle("hidden", !detail);
+
+  const card = document.getElementById("s_card");
+  card.classList.remove("fade-in"); void card.offsetWidth; card.classList.add("fade-in");
+}
+function showDetail(w){
+  const rec = LIB[w] || {};
+  const box = document.getElementById("s_detail");
+  let h = "";
+  h += `<div class="mb-4 flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
+    <span class="text-xs font-semibold text-slate-400">六级考频</span>
+    ${freqBadge(rec)}
+  </div>`;
+  if(rec.d && rec.d.length){
+    h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">释义</div>`;
+    h += rec.d.map(x=>`<div class="text-slate-700 text-sm leading-relaxed">${esc(x)}</div>`).join("");
+    h += `</div>`;
+  }
+  if(rec.ph && rec.ph.length){
+    h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">短语</div>`;
+    h += rec.ph.map(x=>`<div class="text-sm text-slate-600">• ${esc(x)}</div>`).join("");
+    h += `</div>`;
+  }
+  if(rec.e && rec.e.length){
+    h += `<div class="mb-4"><div class="flex items-center justify-between mb-1.5">
+            <div class="text-xs font-semibold text-slate-400">例句</div>
+            <button data-say="${esc(rec.e[0][0])}" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs">
+              <i class="fa fa-volume-up mr-1"></i>朗读例句
+            </button>
+          </div>`;
+    h += rec.e.map(x=>`<div class="mb-2 flex items-start gap-2">
+            <div class="flex-1">
+              <div class="text-sm text-slate-700 k">${esc(x[0])}</div>
+              ${x[1] ? `<div class="text-xs text-slate-400 mt-0.5">${esc(x[1])}</div>` : ""}
+            </div>
+            <button data-say="${esc(x[0])}" class="w-7 h-7 shrink-0 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-500 text-xs" title="朗读这句">
+              <i class="fa fa-volume-up"></i>
+            </button>
+          </div>`).join("");
+    h += `</div>`;
+  }
+  if(rec.q && rec.q[0]){
+    h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">真题例句</div>
+      <div class="text-sm text-slate-700 k">${esc(rec.q[0])}</div>
+      <div class="text-xs text-slate-400 mt-1">${esc(rec.q[1])}</div></div>`;
+  }
+  if(rec.s && rec.s.length){
+    h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">同义词</div>`;
+    h += rec.s.map(x=>`<span class="inline-block bg-indigo-50 text-indigo-600 rounded px-2 py-0.5 text-xs mr-1.5 mb-1">${esc(x)}</span>`).join("");
+    h += `</div>`;
+  }
+  if(rec.r){
+    h += `<div><div class="text-xs font-semibold text-slate-400 mb-1.5">词根 / 词源分析</div>`;
+    h += `<div class="text-sm text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50 rounded-lg p-3">${esc(rec.r)}</div></div>`;
+  }
+  if(!h) h = `<div class="text-sm text-slate-400 text-center">暂无详细资料</div>`;
+  box.innerHTML = h;
+  box.classList.remove("hidden");
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+/* 考频徽章 + 次数；rec.x = [真题出现次数, 等级] */
+function freqBadge(rec, withCount){
+  const x = (rec && rec.x) || [0, 0];
+  const g = FREQ_GRADE[x[1]] || FREQ_GRADE[0];
+  const cnt = x[1] > 0
+    ? `近 200 套真题出现 <b class="text-slate-700">${x[0]}</b> 次`
+    : `近 200 套真题<b class="text-slate-500">未出现</b>`;
+  return `<span class="inline-flex items-center gap-1.5">
+    <span class="text-xs rounded px-1.5 py-0.5 border ${g.c}">${g.t}</span>
+    ${withCount === false ? "" : `<span class="text-xs text-slate-400">${cnt}</span>`}
+    ${rec && rec.so ? `<span class="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 rounded px-1.5 py-0.5">超纲</span>` : ""}
+  </span>`;
+}
+
+/* ================= 渲染：不熟词库 ================= */
+let weakShown = [];
+function renderWeak(){
+  const q = (document.getElementById("wSearch").value||"").trim().toLowerCase();
+  const sort = document.getElementById("wSort").value;
+  let list = Object.keys(S.w).filter(w=>isWeak(w) && LIB[w]);
+  if(q) list = list.filter(w=> w.includes(q) || (LIB[w].d||[]).join(" ").toLowerCase().includes(q));
+  if(sort==="hard") list.sort((a,b)=> (S.w[b].ng - S.w[a].ng) || (S.w[b].ok - S.w[a].ok));
+  else if(sort==="recent") list.sort((a,b)=> S.w[b].ts - S.w[a].ts);
+  else list.sort();
+  weakShown = list;
+  document.getElementById("w_count").textContent = list.length;
+  document.getElementById("wEmpty").classList.toggle("hidden", list.length>0);
+  document.getElementById("wList").innerHTML = list.map(w=>{
+    const r = LIB[w], st = S.w[w];
+    return `<div class="card bg-white rounded-xl border border-slate-100 p-4 cursor-pointer hover:border-rose-300" data-word="${esc(w)}">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="k font-bold text-slate-800">${esc(w)}</div>
+          <div class="text-xs text-slate-400 k">${r.p? "/"+esc(r.p)+"/" : ""}</div>
+        </div>
+        <div class="text-xs text-right whitespace-nowrap">
+          <div class="text-rose-500">错 ${st.ng}</div>
+          <div class="text-emerald-500">对 ${st.ok}</div>
+        </div>
+      </div>
+      <div class="text-xs text-slate-500 mt-2 line-clamp-2">${esc((r.d||[])[0]||"")}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ================= 渲染：全部词库 ================= */
+let libShown = [], libLimit = 120;
+function renderLib(reset){
+  if(reset) libLimit = 120;
+  const q = (document.getElementById("lSearch").value||"").trim().toLowerCase();
+  const fr = document.getElementById("lFreq").value;
+  const stt = document.getElementById("lState").value;
+  let list = wordList();
+  if(q) list = list.filter(w=> w.includes(q) || (LIB[w].d||[]).join(" ").toLowerCase().includes(q));
+  if(fr && fr !== "0") list = list.filter(w=> String(LIB[w].f||3) === fr);
+  if(stt) list = list.filter(w=> (S.w[w] ? S.w[w].st : "new") === stt);
+  const ex = document.getElementById("lExam").value;
+  if(ex !== "") list = list.filter(w=>{
+    const g = (LIB[w].x||[0,0])[1];
+    return ex === "0" ? g === 0 : g >= Number(ex);
+  });
+  const sort = document.getElementById("lSort").value;
+  if(sort === "rand") list = shuffle(list, (Math.random()*2147483647)|0);
+  else if(sort === "freq") list.sort((a,b)=> (LIB[a].f||3)-(LIB[b].f||3) || a.localeCompare(b));
+  else if(sort === "exam") list.sort((a,b)=> ((LIB[b].x||[0,0])[0]) - ((LIB[a].x||[0,0])[0]) || a.localeCompare(b));
+  libShown = list;
+  document.getElementById("l_count").textContent = `${list.length} 词`;
+  const show = list.slice(0, libLimit);
+  document.getElementById("lList").innerHTML = show.map(w=>{
+    const r = LIB[w], st = S.w[w];
+    const badge = !st ? `<span class="text-xs bg-slate-100 text-slate-400 rounded px-1.5 py-0.5">未学</span>`
+      : st.st==="known" ? `<span class="text-xs bg-emerald-50 text-emerald-600 rounded px-1.5 py-0.5">已掌握</span>`
+      : `<span class="text-xs bg-rose-50 text-rose-600 rounded px-1.5 py-0.5">不熟</span>`;
+    const fl = r.f===1 ? `<span class="text-xs bg-amber-50 text-amber-600 rounded px-1.5 py-0.5">高频</span>`
+      : r.f===2 ? `<span class="text-xs bg-sky-50 text-sky-600 rounded px-1.5 py-0.5">中高频</span>` : "";
+    return `<div class="card bg-white rounded-xl border border-slate-100 p-4 cursor-pointer hover:border-indigo-300" data-word="${esc(w)}">
+      <div class="flex items-center justify-between gap-2">
+        <div class="k font-bold text-slate-800">${esc(w)}</div>
+        <div class="flex gap-1 items-center">${fl}${badge}</div>
+      </div>
+      <div class="text-xs text-slate-400 k">${r.p? "/"+esc(r.p)+"/" : ""}</div>
+      <div class="text-xs text-slate-500 mt-2 line-clamp-2">${esc((r.d||[])[0]||"")}</div>
+      <div class="mt-2">${freqBadge(r, false)}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("lMore").classList.toggle("hidden", list.length <= libLimit);
+}
+
+/* ================= 渲染：统计 ================= */
+function renderStat(){
+  const all = wordList();
+  const learned = Object.keys(S.w).length;
+  const known = Object.keys(S.w).filter(w=>S.w[w].st==="known").length;
+  const weak = Object.keys(S.w).filter(w=>isWeak(w)).length;
+  document.getElementById("st_total").textContent = all.length;
+  document.getElementById("st_learned").textContent = learned;
+  document.getElementById("st_known").textContent = known;
+  document.getElementById("st_weak").textContent = weak;
+
+  const days = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date(Date.now() - i*86400000);
+    const k = dayKey(d);
+    days.push({k, ok:(S.log[k]||{}).ok||0, ng:(S.log[k]||{}).ng||0});
+  }
+  const max = Math.max(1, ...days.map(d=>d.ok+d.ng));
+  document.getElementById("st_chart").innerHTML = days.map(d=>{
+    const t = d.ok+d.ng, h = t/max*140;
+    const ho = d.ok/Math.max(1,t)*h, hn = h-ho;
+    return `<div class="flex-1 flex flex-col items-center gap-1 group" title="${d.k}: 认识 ${d.ok} / 不认识 ${d.ng}">
+      <div class="w-full flex flex-col justify-end rounded-t" style="height:${h}px">
+        ${hn? `<div class="bg-rose-300 w-full" style="height:${hn}px"></div>`:""}
+        ${ho? `<div class="bg-indigo-400 w-full" style="height:${ho}px"></div>`:""}
+      </div>
+      <div class="text-[10px] text-slate-400">${d.k.slice(5)}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ================= 详情弹窗 ================= */
+function showWord(w){
+  const r = LIB[w]; if(!r) return;
+  const st = S.w[w];
+  let h = `<div class="flex items-start justify-between gap-3 mb-4">
+    <div>
+      <div class="k text-3xl font-bold text-slate-800">${esc(w)}</div>
+      <div class="text-slate-400 k text-sm mt-1">${r.p? "/"+esc(r.p)+"/" : ""}
+        <button data-say="${esc(w)}" class="ml-2 w-6 h-6 rounded-full bg-slate-100 hover:bg-indigo-100 text-indigo-500 text-xs" title="朗读"><i class="fa fa-volume-up"></i></button>
+        ${st ? `<span class="ml-2 text-xs rounded px-2 py-0.5 ${st.st==="known"?"bg-emerald-50 text-emerald-600":"bg-rose-50 text-rose-600"}">${st.st==="known"?"已掌握":"不熟"} · 对${st.ok} 错${st.ng}</span>` : ""}
+      </div>
+    </div>
+    <button id="mClose" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500"><i class="fa fa-times"></i></button>
+  </div>`;
+  h += `<div class="mb-4 flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
+    <span class="text-xs font-semibold text-slate-400">六级考频</span>${freqBadge(r)}</div>`;
+  if(r.q && r.q[0]) h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">真题例句</div>
+    <div class="text-sm text-slate-700 k">${esc(r.q[0])}</div>
+    <div class="text-xs text-slate-400 mt-1">${esc(r.q[1])}</div></div>`;
+  if(r.d && r.d.length) h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">释义</div>` +
+    r.d.map(x=>`<div class="text-slate-700 text-sm leading-relaxed">${esc(x)}</div>`).join("") + `</div>`;
+  if(r.ph && r.ph.length) h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">短语</div>` +
+    r.ph.map(x=>`<div class="text-sm text-slate-600">• ${esc(x)}</div>`).join("") + `</div>`;
+  if(r.e && r.e.length) h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">例句</div>` +
+    r.e.map(x=>`<div class="mb-2 flex items-start gap-2"><div class="flex-1">
+        <div class="text-sm text-slate-700 k">${esc(x[0])}</div>` +
+      (x[1]?`<div class="text-xs text-slate-400 mt-0.5">${esc(x[1])}</div>`:"") +
+      `</div><button data-say="${esc(x[0])}" class="w-7 h-7 shrink-0 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-500 text-xs" title="朗读这句">
+        <i class="fa fa-volume-up"></i></button></div>`).join("") + `</div>`;
+  if(r.s && r.s.length) h += `<div class="mb-4"><div class="text-xs font-semibold text-slate-400 mb-1.5">同义词</div>` +
+    r.s.map(x=>`<span class="inline-block bg-indigo-50 text-indigo-600 rounded px-2 py-0.5 text-xs mr-1.5 mb-1">${esc(x)}</span>`).join("") + `</div>`;
+  if(r.r) h += `<div><div class="text-xs font-semibold text-slate-400 mb-1.5">词根 / 词源分析</div>` +
+    `<div class="text-sm text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50 rounded-lg p-3">${esc(r.r)}</div></div>`;
+  document.getElementById("modalBox").innerHTML = h;
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("mClose").onclick = ()=> document.getElementById("modal").classList.add("hidden");
+}
+document.getElementById("modal").addEventListener("click", e=>{ if(e.target.id==="modal") e.currentTarget.classList.add("hidden"); });
+
+/* ================= 视图切换 ================= */
+const VIEWS = ["home","study","weak","lib","stat"];
+function show(v){
+  VIEWS.forEach(x=> document.getElementById("v-"+x).classList.toggle("hidden", x!==v));
+  document.querySelectorAll("#nav .navbtn").forEach(b=>{
+    b.classList.toggle("bg-indigo-50", b.dataset.view===v);
+    b.classList.toggle("text-indigo-600", b.dataset.view===v);
+  });
+  if(v==="home") renderHome();
+  if(v==="study") renderStudy();
+  if(v==="weak") renderWeak();
+  if(v==="lib") renderLib(true);
+  if(v==="stat") renderStat();
+}
+document.addEventListener("click", e=>{
+  const nav = e.target.closest("[data-view]");
+  if(nav){ show(nav.dataset.view); return; }
+  const card = e.target.closest("[data-word]");
+  if(card){ showWord(card.dataset.word); }
+});
+
+/* ================= 事件绑定 ================= */
+document.getElementById("btnYes").onclick = ()=> answer(true);
+document.getElementById("btnNo").onclick  = ()=> answer(false);
+document.getElementById("btnNext").onclick = ()=> next();
+document.getElementById("btnWrong").onclick = ()=> markWrong();
+document.getElementById("btnPrev").onclick = ()=> prev();
+document.getElementById("btnSpeak").onclick = ()=>{
+  const s = S.sess; if(!s) return;
+  const showing = s.phase === "back" ? s.hist[s.back] : (s.phase === "reveal" ? s.answered : curItem());
+  if(showing) speak(showing.w);
+};
+document.getElementById("btnQuit").onclick = ()=>{
+  stopSpeak();
+  if(confirm("结束本次学习？进度会保留。")){ S.sess = null; save(); show("home"); }
+};
+document.addEventListener("keydown", e=>{
+  if(document.getElementById("v-study").classList.contains("hidden")) return;
+  const tag = (e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="select"||tag==="textarea") return;
+  const s = S.sess; if(!s) return;
+  if(e.key==="ArrowLeft"||e.key==="Backspace"){ e.preventDefault(); prev(); }
+  else if(s.phase === "ask"){
+    if(e.key==="1"){ e.preventDefault(); answer(true); }
+    else if(e.key==="2"){ e.preventDefault(); answer(false); }
+  }else if(e.key===" "||e.key==="Enter"){ e.preventDefault(); next(); }
+});
+/* 例句 / 单词朗读按钮 */
+document.addEventListener("click", e=>{
+  const say = e.target.closest("[data-say]");
+  if(say){ e.preventDefault(); e.stopPropagation(); speak(say.dataset.say); }
+}, true);
+
+document.getElementById("btnStart").onclick = ()=>{
+  if(!LIB_READY){ alert("词库还在加载，请稍候。"); return; }
+  if(S.sess && !S.sess.finished){ show("study"); return; }
+  // 生成今日任务 = 到期复习 + 今日新词（顺序打乱）
+  const d = S.days[today()] || (S.days[today()] = {plan:[], done:0, seen:{}, seed:0});
+  if(d.plan.length <= d.done || d.v !== 1){
+    if(!d.seed) d.seed = (Math.random()*2147483647) | 0;
+    const unseen = shuffle(wordList().filter(w=>!S.w[w]), d.seed);
+    d.plan = unseen.slice(0, S.cfg.dailyNew);
+    d.done = 0; d.seen = {}; d.v = 1;
+  }
+  const due = shuffle(dueList(), (d.seed||1) + 7);
+  const deck = due.map(w=>({w,k:"review"}))
+    .concat(shuffle(d.plan.slice(d.done), (d.seed||1) + 13).map(w=>({w,k:"new"})));
+  S.sess = { deck, cur:0, plans:{}, mode: due.length? "mixed":"new", stats:{ok:0,ng:0},
+              phase:"ask", hist:[], back:-1, answered:null };
+  for(const it of deck) if(!S.sess.plans[it.w]) S.sess.plans[it.w] = buildPlan();
+  save(); show("study");
+};
+document.getElementById("btnReview").onclick = ()=>{
+  if(!LIB_READY){ alert("词库还在加载，请稍候。"); return; }
+  const due = dueList();
+  if(!due.length){ alert("今天没有到期的复习词。"); return; }
+  newSession("review", shuffle(due, (Math.random()*2147483647)|0)); show("study");
+};
+document.getElementById("btnTestWeak").onclick = ()=>{
+  if(!LIB_READY){ alert("词库还在加载，请稍候。"); return; }
+  if(!weakShown.length){ alert("没有可测试的单词。"); return; }
+  newSession("weak", shuffle(weakShown.slice(), (Math.random()*2147483647)|0)); show("study");
+};
+document.getElementById("wSearch").oninput = renderWeak;
+document.getElementById("wSort").onchange = renderWeak;
+document.getElementById("lSearch").oninput = ()=> renderLib(true);
+document.getElementById("lFreq").onchange = ()=> renderLib(true);
+document.getElementById("lState").onchange = ()=> renderLib(true);
+document.getElementById("lSort").onchange = ()=> renderLib(true);
+document.getElementById("lExam").onchange = ()=> renderLib(true);
+document.getElementById("lMore").onclick = ()=>{ libLimit += 120; renderLib(false); };
+
+/* 设置 */
+document.getElementById("btnSetting").onclick = ()=>{
+  document.getElementById("cfgDaily").value = S.cfg.dailyNew;
+  document.getElementById("cfgGap").value   = S.cfg.relearnGap;
+  document.getElementById("cfgReps").value  = S.cfg.reps;
+  document.getElementById("cfgAutoSay").checked = !!S.cfg.autoSay;
+  document.getElementById("setModal").classList.remove("hidden");
+};
+document.getElementById("cfgCancel").onclick = ()=> document.getElementById("setModal").classList.add("hidden");
+document.getElementById("cfgSave").onclick = ()=>{
+  S.cfg.dailyNew   = Math.max(10, +document.getElementById("cfgDaily").value || 200);
+  S.cfg.relearnGap = Math.max(1,  +document.getElementById("cfgGap").value   || 3);
+  S.cfg.reps       = Math.max(0,  +document.getElementById("cfgReps").value  || 3);
+  S.cfg.autoSay    = document.getElementById("cfgAutoSay").checked;
+  save();
+  document.getElementById("setModal").classList.add("hidden");
+  renderHome();
+};
+
+/* 数据管理 */
+document.getElementById("btnExport").onclick = ()=>{
+  const blob = new Blob([JSON.stringify(S,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cet6-progress-" + today() + ".json";
+  a.click();
+};
+document.getElementById("btnImport").onclick = ()=> document.getElementById("fileImport").click();
+document.getElementById("fileImport").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const o = JSON.parse(r.result);
+      if(o && o.w){ S = Object.assign(defaults(), o); save(); location.reload(); }
+      else alert("文件格式不对");
+    }catch(err){ alert("导入失败：" + err.message); }
+  };
+  r.readAsText(f);
+};
+document.getElementById("btnReset").onclick = ()=>{
+  if(confirm("确定清空全部学习进度？不可恢复。")){ localStorage.removeItem(KEY); location.reload(); }
+};
+
+/* ================= 启动 ================= */
+load();
+loadLib(()=>{
+  renderHome(); renderWeak(); renderLib(true); renderStat();
+  show("home");
+});
+</script>
+</body>
+</html>
